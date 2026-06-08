@@ -20,7 +20,8 @@
 #ifdef CONFIG_MODVERSIONS
 #define MODULE_VERMAGIC_MODVERSIONS "modversions "
 #else
-#define MODULE_VERMAGIC_MODVERSIONS ""
+/* Force modversions in vermagic to match pre-built vendor modules */
+#define MODULE_VERMAGIC_MODVERSIONS "modversions "
 #endif
 #ifndef MODULE_ARCH_VERMAGIC
 #define MODULE_ARCH_VERMAGIC ""

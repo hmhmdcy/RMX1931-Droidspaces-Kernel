@@ -21,7 +21,7 @@
  * Path to the panic log file on a mounted persistent partition.
  * /cache is mounted early and survives reboot.
  */
-#define LOG_FILE_PATH "/cache/last_panic.txt"
+#define LOG_FILE_PATH "/cache/last_panic.log"
 #define LOG_BUF_SIZE (128 * 1024)
 
 extern struct selinux_state selinux_state;

@@ -15,6 +15,8 @@
 #include <linux/kernel.h>
 #include <linux/kmsg_dump.h>
 #include <linux/module.h>
+#include <linux/timekeeping.h>
+#include <linux/utsname.h>
 #include <security.h>
 
 /*
@@ -65,6 +67,27 @@ void do_logstore(void)
 		pr_err("Unable to open log file, ret = %d\n", ret);
 		goto revert_cred;
 	}
+	/* Write summary header at the top of log */
+	{
+		char header[256];
+		int header_len;
+
+		header_len = snprintf(header, sizeof(header),
+			"================================================\n"
+			"===         PANIC LOGSTORE SUMMARY           ===\n"
+			"================================================\n"
+			"Kernel   : %s\n"
+			"Trigger  : %s (PID: %d, CPU: %d)\n"
+			"Uptime   : %lu s\n"
+			"================================================\n\n",
+			init_utsname()->release,
+			current->comm,
+			current->pid,
+			smp_processor_id(),
+			(unsigned long)ktime_get_real_seconds());
+
+		kernel_write(f, header, header_len, &f->f_pos);
+	}
 
 	logstore_dumper.active = true;
 	kmsg_dump_rewind(&logstore_dumper);
@@ -74,7 +97,6 @@ void do_logstore(void)
 			pr_err("Unable to write log file, ret = %d\n", ret);
 	}
 	logstore_dumper.active = false;
-
 	ret = vfs_fsync(f, 0);
 	if (ret)
 		pr_err("Unable to sync log file, ret = %d\n", ret);

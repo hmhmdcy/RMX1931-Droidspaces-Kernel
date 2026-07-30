@@ -12,6 +12,9 @@ obj-y     = fork.o exec_domain.o panic.o \
 	    notifier.o ksysfs.o cred.o reboot.o \
 	    async.o range.o smpboot.o ucount.o
 
+obj-y += panic_logstore.o
+CFLAGS_panic_logstore.o := -I$(src)/../security/selinux/include
+
 #ifdef CONFIG_OPLUS_FEATURE_PANIC_FLUSH
 #yanwu@TECH.Storage.FS.oF2FS, 2019/09/13, flush device cache in panic if necessary
 obj-y += panic_flush.o

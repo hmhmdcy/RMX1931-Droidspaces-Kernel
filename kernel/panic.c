@@ -28,6 +28,7 @@
 #include <linux/console.h>
 #include <linux/bug.h>
 #include <linux/ratelimit.h>
+#include <linux/panic_logstore.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/exception.h>
 #include <soc/qcom/minidump.h>
@@ -213,6 +214,15 @@ void panic(const char *fmt, ...)
 	if (!test_taint(TAINT_DIE) && oops_in_progress <= 1)
 		dump_stack();
 #endif
+
+	/*
+	 * panic_logstore: dump kernel log to persistent file before shutting
+	 * down other CPUs, so that storage interrupts still work.
+	 */
+	local_irq_enable();
+	do_logstore();
+	mdelay(1000);
+	local_irq_disable();
 
 	/*
 	 * If we have crashed and we have a crash kernel loaded let it handle

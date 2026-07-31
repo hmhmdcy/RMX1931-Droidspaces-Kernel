@@ -321,6 +321,10 @@ source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
 source "fs/unicode/Kconfig"
 
+# Restore binfmt_misc Kconfig entry removed by OPlus
+# Needed for qemu-user / cross-arch binary execution in containers
+source "fs/Kconfig.binfmt"
+
 #ifdef OPLUS_FEATURE_EXFAT_SUPPORT
 #huyu@BSP.Driver, 2020/08/13, Add for exfat filesystem
 source "fs/exfat/Kconfig"

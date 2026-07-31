@@ -754,6 +754,8 @@ CONFIG_SQUASHFS_XZ=y
 # LXC completeness: hugetlb filesystem + cgroup controller
 CONFIG_HUGETLBFS=y
 CONFIG_CGROUP_HUGETLB=y
+# LXC/Kali support: binfmt_misc for qemu-user cross-arch binaries
+CONFIG_BINFMT_MISC=y
 CONFIG_INCREMENTAL_FS=y
 CONFIG_MSDOS_FS=y
 CONFIG_VFAT_FS=y

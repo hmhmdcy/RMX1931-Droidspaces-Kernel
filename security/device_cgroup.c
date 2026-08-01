@@ -6,6 +6,7 @@
  */
 
 #include <linux/device_cgroup.h>
+#include <linux/bpf-cgroup.h>
 #include <linux/cgroup.h>
 #include <linux/ctype.h>
 #include <linux/list.h>
@@ -814,7 +815,13 @@ static int __devcgroup_check_permission(short type, u32 major, u32 minor,
 				        short access)
 {
 	struct dev_cgroup *dev_cgroup;
+	int bpf_rc;
 	bool rc;
+
+	/* cgroup v2: run attached device eBPF programs first */
+	bpf_rc = BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type, major, minor, access);
+	if (bpf_rc)
+		return -EPERM;
 
 	rcu_read_lock();
 	dev_cgroup = task_devcgroup(current);

@@ -3485,12 +3485,18 @@ static bool mnt_already_visible(struct mnt_namespace *ns, struct vfsmount *new,
 		if (sb_rdonly(mnt->mnt.mnt_sb))
 			mnt_flags |= MNT_LOCK_READONLY;
 
-		/* Verify the mount flags are equal to or more permissive
-		 * than the proposed new mount.
+		/*
+		 * Android mounts the host /sys read-only, so the readonly
+		 * mismatch branch would reject a fresh rw sysfs instance for
+		 * a rootless container even though it reveals nothing new:
+		 * the new superblock is bound to the caller's current netns
+		 * via kobj_ns_grab_current(), and write access is still
+		 * denied by VFS mode bits plus the capable(CAP_SYS_ADMIN)
+		 * checks in the per-attribute store callbacks.  The host's
+		 * locked ro mount constrains only its own tree, not an
+		 * unrelated fresh instance, so drop the readonly-mismatch
+		 * rejection.
 		 */
-		if ((mnt_flags & MNT_LOCK_READONLY) &&
-		    !(new_flags & MNT_READONLY))
-			continue;
 		if ((mnt_flags & MNT_LOCK_ATIME) &&
 		    ((mnt_flags & MNT_ATIME_MASK) != (new_flags & MNT_ATIME_MASK)))
 			continue;
@@ -3508,9 +3514,10 @@ static bool mnt_already_visible(struct mnt_namespace *ns, struct vfsmount *new,
 		 * instance with identical read-only visibility, and tmpfs
 		 * masks (e.g. /proc/uptime) have no content in it.
 		 */
-		/* Preserve the locked attributes */
-		*new_mnt_flags |= mnt_flags & (MNT_LOCK_READONLY | \
-					       MNT_LOCK_ATIME);
+		/* Preserve the atime lock only; the host's readonly lock must
+		 * not leak onto an independent fresh instance.
+		 */
+		*new_mnt_flags |= mnt_flags & MNT_LOCK_ATIME;
 		visible = true;
 		goto found;
 	}

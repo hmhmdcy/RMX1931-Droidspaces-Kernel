@@ -1,6 +1,14 @@
 Linux kernel
 ============
 
+本分支文档导航
+==============
+
+本分支（feat/container-networking）为 Realme X2 Pro（SM8150）rootless 容器
+（podman / crun / fuse-overlayfs）定制，仓库内文档：
+
+* CONTAINER-ROOTLESS-PATCHES.md — 内核改动总览（backport/relax/restrict 分类、安全边界论证、验证方法、红线）
+
 This file was moved to Documentation/admin-guide/README.rst
 
 Please notice that there are several guides for kernel developers and users.
@@ -16,7 +24,3 @@ See Documentation/00-INDEX for a list of what is contained in each file.
 Please read the Documentation/process/changes.rst file, as it contains the
 requirements for building and running the kernel, and information about
 the problems which may result by upgrading your kernel.
-
----
-本分支为 rootless 容器（podman）定制的内核改动说明见
-CONTAINER-ROOTLESS-PATCHES.md

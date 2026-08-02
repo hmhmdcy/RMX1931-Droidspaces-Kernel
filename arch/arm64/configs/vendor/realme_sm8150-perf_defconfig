@@ -886,12 +886,13 @@ CONFIG_NFT_REJECT_IPV6=y
 CONFIG_NFT_CHAIN_NAT_IPV6=y
 CONFIG_NFT_MASQ_IPV6=y
 CONFIG_NFT_REDIR_IPV6=y
-# podman/netavark: nft fib (netavark hard dep) + ipv6 masquerade + vlan + sock diag
+# podman/netavark: nft fib (netavark hard dep) + ipv6 masquerade + sock diag
+# NOTE: VLAN_8021Q NOT enabled - inserts vlan_info into struct net_device
+# (netdevice.h:1791), breaks prebuilt wlan.ko ABI (same class as NET_L3_MASTER_DEV)
 CONFIG_NFT_FIB_IPV4=y
 CONFIG_NFT_FIB_IPV6=y
 CONFIG_NFT_FIB_INET=y
 CONFIG_IP6_NF_TARGET_MASQUERADE=y
-CONFIG_VLAN_8021Q=y
 CONFIG_UNIX_DIAG=y
 CONFIG_PACKET_DIAG=y
 CONFIG_NETLINK_DIAG=y

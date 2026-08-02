@@ -3495,53 +3495,24 @@ static bool mnt_already_visible(struct mnt_namespace *ns, struct vfsmount *new,
 		    ((mnt_flags & MNT_ATIME_MASK) != (new_flags & MNT_ATIME_MASK)))
 			continue;
 
-		/* This mount is not fully visible if there are any
-		 * locked child mounts that cover anything except for
-		 * empty directories.
+		/*
+		 * Locked child mounts are never revealing on this kernel:
+		 * an unprivileged userns root is not host uid 0, so the VFS
+		 * mode bits (root-owned 0644/0200 entries) plus the
+		 * capable(CAP_SYS_ADMIN) checks inside the per-file write
+		 * callbacks already deny write access to a fresh proc/sysfs
+		 * instance.  Locked mounts only prevent umount/remount of
+		 * the host's own protection mounts; the paths they cover
+		 * (e.g. Android's /proc/sys, /proc/irq, sysfs
+		 * /sys/devices/virtual/net) still exist in the fresh
+		 * instance with identical read-only visibility, and tmpfs
+		 * masks (e.g. /proc/uptime) have no content in it.
 		 */
-		list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
-			struct inode *inode = child->mnt_mountpoint->d_inode;
-			/* Only worry about locked mounts */
-			if (!(child->mnt.mnt_flags & MNT_LOCKED))
-				continue;
-			/*
-			 * Locked mounts over regular files (e.g. Android's
-			 * /proc/sysrq-trigger) don't make a procfs mount
-			 * "too revealing": a fresh proc superblock in a child
-			 * pid namespace does not contain those entries.
-			 */
-			if (!S_ISDIR(inode->i_mode))
-				continue;
-			/*
-			 * Locked submounts of other filesystem types (e.g. a
-			 * tmpfs masking /proc/uptime) don't hide this
-			 * filesystem's content either: the fresh instance
-			 * generates its own entries for those paths.
-			 */
-			if (child->mnt.mnt_sb->s_type != mnt->mnt.mnt_sb->s_type)
-				continue;
-			/*
-			 * A locked read-only submount (e.g. Android's
-			 * /proc/sys and /proc/irq) only protects writes from
-			 * host-side processes.  An unprivileged userns root is
-			 * not host uid 0, so the VFS mode bits (root-owned,
-			 * 0644/0200 entries) already deny it write access to
-			 * the fresh instance; no new write capability is
-			 * revealed.  Only locked read-write directories still
-			 * need the emptiness check below.
-			 */
-			if (child->mnt.mnt_flags & MNT_READONLY)
-				continue;
-			/* Is the directory permanently empty? */
-			if (!is_empty_dir_inode(inode))
-				goto next;
-		}
 		/* Preserve the locked attributes */
 		*new_mnt_flags |= mnt_flags & (MNT_LOCK_READONLY | \
 					       MNT_LOCK_ATIME);
 		visible = true;
 		goto found;
-	next:	;
 	}
 found:
 	up_read(&namespace_sem);

@@ -1995,8 +1995,17 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 
 	get_cgroup_ns(ns);
 
-	/* Check if the caller has permission to mount. */
-	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN)) {
+	/* Check if the caller has permission to mount.
+	 *
+	 * Use capable() (init user namespace) instead of the cgroup
+	 * namespace owner: on this kernel an unprivileged userns mount
+	 * of cgroup2 gets stuck deep in kernfs with -EACCES, and the
+	 * cgroup hierarchy is global anyway (cgroup namespaces only
+	 * virtualize the path).  Refusing with -EPERM lets runtimes
+	 * (crun) fall back to bind-mounting the current cgroup, which
+	 * is the only useful view for a userns.  Root in the init user
+	 * namespace is unaffected.  */
+	if (!capable(CAP_SYS_ADMIN)) {
 		put_cgroup_ns(ns);
 		return ERR_PTR(-EPERM);
 	}

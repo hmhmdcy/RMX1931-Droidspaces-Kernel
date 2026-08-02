@@ -115,17 +115,16 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 	} else {
 		ns = task_active_pid_ns(current);
 		options = data;
+
+		/* Does the mounter have privilege over the pid namespace? */
+		if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
+			return ERR_PTR(-EPERM);
 	}
 
 	/*
-	 * Upstream (mount_ns): the sb is bound to ns->user_ns and the
-	 * capability gate is FS_USERNS_MOUNT (set on proc_fs_type), so an
-	 * unprivileged user namespace may mount proc inside its own pid
-	 * namespace. OPlus replaced this with an unconditional
-	 * ns_capable(ns->user_ns, CAP_SYS_ADMIN) check, which fails whenever
-	 * the current pid namespace belongs to a parent user namespace
-	 * (e.g. a container pid ns in the init user ns), breaking rootless
-	 * container runtimes. Restore the upstream semantics.
+	 * Bind the superblock to ns->user_ns (as upstream mount_ns() does)
+	 * instead of the init user ns: userns-mounted proc instances then
+	 * get a matching s_user_ns for uid/gid display.
 	 */
 	sb = sget_userns(fs_type, proc_test_super, proc_set_super, flags,
 			 ns->user_ns, ns);

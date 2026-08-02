@@ -3504,7 +3504,17 @@ static bool mnt_already_visible(struct mnt_namespace *ns, struct vfsmount *new,
 			/* Only worry about locked mounts */
 			if (!(child->mnt.mnt_flags & MNT_LOCKED))
 				continue;
-			/* Is the directory permanetly empty? */
+			/*
+			 * Locked mounts over regular files (e.g. Android's
+			 * /proc/sysrq-trigger) don't make a procfs mount
+			 * "too revealing": a fresh proc superblock in a child
+			 * pid namespace does not contain those entries.  Only
+			 * locked mounts covering non-empty directories hide
+			 * real content from a userns mount.
+			 */
+			if (!S_ISDIR(inode->i_mode))
+				continue;
+			/* Is the directory permanently empty? */
 			if (!is_empty_dir_inode(inode))
 				goto next;
 		}

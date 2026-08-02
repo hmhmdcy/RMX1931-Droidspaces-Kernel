@@ -130,3 +130,6 @@ kernel/configs/android-*.cfg
 #Ignoring Android.bp link file
 #
 Android.bp
+
+# build.sh creates this symlink on every build
+/kernel/msm-4.14

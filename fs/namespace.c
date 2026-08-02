@@ -3508,11 +3508,29 @@ static bool mnt_already_visible(struct mnt_namespace *ns, struct vfsmount *new,
 			 * Locked mounts over regular files (e.g. Android's
 			 * /proc/sysrq-trigger) don't make a procfs mount
 			 * "too revealing": a fresh proc superblock in a child
-			 * pid namespace does not contain those entries.  Only
-			 * locked mounts covering non-empty directories hide
-			 * real content from a userns mount.
+			 * pid namespace does not contain those entries.
 			 */
 			if (!S_ISDIR(inode->i_mode))
+				continue;
+			/*
+			 * Locked submounts of other filesystem types (e.g. a
+			 * tmpfs masking /proc/uptime) don't hide this
+			 * filesystem's content either: the fresh instance
+			 * generates its own entries for those paths.
+			 */
+			if (child->mnt.mnt_sb->s_type != mnt->mnt.mnt_sb->s_type)
+				continue;
+			/*
+			 * A locked read-only submount (e.g. Android's
+			 * /proc/sys and /proc/irq) only protects writes from
+			 * host-side processes.  An unprivileged userns root is
+			 * not host uid 0, so the VFS mode bits (root-owned,
+			 * 0644/0200 entries) already deny it write access to
+			 * the fresh instance; no new write capability is
+			 * revealed.  Only locked read-write directories still
+			 * need the emptiness check below.
+			 */
+			if (child->mnt.mnt_flags & MNT_READONLY)
 				continue;
 			/* Is the directory permanently empty? */
 			if (!is_empty_dir_inode(inode))

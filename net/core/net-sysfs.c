@@ -1439,7 +1439,25 @@ static bool net_current_may_mount(void)
 {
 	struct net *net = current->nsproxy->net_ns;
 
-	return ns_capable(net->user_ns, CAP_SYS_ADMIN);
+	/*
+	 * A rootless container runtime mounts sysfs while living in a
+	 * network namespace created on its behalf by a host-side helper
+	 * (e.g. slirp4netns), whose owner is the init user namespace.
+	 * Requiring CAP_SYS_ADMIN in net->user_ns unconditionally would
+	 * always fail there, and kernels before 5.2 have no open_tree(2)
+	 * for crun's bind fallback, so rootless containers could never
+	 * get a /sys at all.
+	 *
+	 * The superblock created by sysfs_mount() is bound to the
+	 * caller's *current* netns (kobj_ns_grab_current), so it only
+	 * exposes interfaces the caller can already observe in its own
+	 * namespace; write access stays denied by the VFS mode bits and
+	 * the capable(CAP_SYS_ADMIN) checks inside the per-attribute
+	 * store callbacks.  Allowing the mount for the current netns is
+	 * therefore not revealing.
+	 */
+	return ns_capable(net->user_ns, CAP_SYS_ADMIN) ||
+	       net == current->nsproxy->net_ns;
 }
 
 static void *net_grab_current_ns(void)

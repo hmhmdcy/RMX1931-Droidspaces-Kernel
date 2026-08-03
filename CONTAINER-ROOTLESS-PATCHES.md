@@ -22,6 +22,7 @@
 | `f3df8b7b6` | fs/namespace.c | **[relax]** | `mnt_already_visible` 完全移除锁定子挂载检查 |
 | `f3df8b7b6` | kernel/cgroup/cgroup.c | **[restrict]** | cgroup 挂载检查 `ns_capable(ns->user_ns)` → `capable()`（仅 init userns；userns 挂 cgroup 一律 EPERM → crun 官方 fallback bind 触发） |
 | `24298cf8c` | net/core/net-sysfs.c | **[relax]** | `net_current_may_mount` 放行挂载者当前 netns（sysfs 直挂） |
+| `886338239` | fs/namespace.c | **[relax]** | `mnt_already_visible` 删除 readonly 不匹配拒绝（Android 宿主 /sys 为 ro，userns 挂 rw sysfs 被误拒）；不传播 `MNT_LOCK_READONLY` |
 
 类型说明：
 - **[backport]**：主线早已修复的 bug 原样搬回，与 upstream 语义一致，无安全差异
@@ -53,11 +54,40 @@
    `capable()`——userns 挂 cgroup 一律 EPERM。cgroup 层级全局（cgroup ns 只虚拟化
    路径），crun 的官方 fallback（EPERM 时 bind 当前 cgroup）正常工作。rootful
    （init userns root）不受影响。
+4. **readonly 不匹配（fs/namespace.c，`886338239`）**：Android 宿主 `/sys` 是 ro
+   挂载（`sb_rdonly` → 伪 `MNT_LOCK_READONLY`），`mnt_already_visible` 的
+   readonly 分支会拒绝 userns 挂载 rw sysfs——尽管新实例是绑挂载者当前 netns 的
+   全新 superblock，不揭示任何宿主内容。删除该拒绝并停止向新实例传播
+   `MNT_LOCK_READONLY`（atime 锁仍保留）。写权限仍被 VFS mode 位 + 属性写回调的
+   `capable(CAP_SYS_ADMIN)` 双重挡住。**实测**：`unshare -Urm` 挂 rw sysfs 从
+   `EPERM`（24298cf8c）变为 `EXIT=0`（886338239）。
 
 ## 已知取舍
 
-- rootless 容器必须 `--cgroups=disabled`（DroidSpaces 宿主零委托，非本分支改动可解）
+- rootless 容器必须 `--cgroups=disabled`：DroidSpaces 宿主 cgroup2 布局
+  （`user.slice/user-1000.slice/...`）**没有 `pids` controller**（Android 系统
+  cgroup 配置限制），crun 管理 cgroup 时直接报
+  `controller 'pids' is not available`。`--cgroups=disabled` 绕过（crun 官方
+  fallback）。
+- **overlay 存储不可行（重要）**：本内核 FUSE 接口版本 **7.26**
+  （`include/uapi/linux/fuse.h`），fuse-overlayfs 1.13 需 **7.40** 的 owner 映射
+  特性。userns 内 fuse-overlayfs 挂载后 root 目录 owner 变 `nobody`（映射失败）→
+  chown/写入全部 `EPERM`（手动测试实证，非 podman 配置问题）。**存储保持 vfs**
+  （可用但慢）；要 overlay 需先 backport FUSE 7.28+（大工程，未做）。
+- **镜像加速**：手机网络下 `registry-1.docker.io` DNS 被污染（解析到
+  `100.49.158.130`，connection reset）。已配置 `~/.config/containers/registries.conf`
+  镜像：`docker.m.daocloud.io`（HTTP/2 401 = 正常 registry 响应）。
 - 放宽后本内核不适合"多租户 userns 互不信任隔离"场景；单用户设备场景无实际风险面
+
+## 运维注意（DroidSpaces 本体，非内核）
+
+- **Magisk 模块禁用即全链路故障**：`/data/adb/modules/droidspaces/disable` 存在时
+  post-fs-data 不执行 → daemon 不自启 + `droidspacesd` SELinux 域规则不注入 →
+  手动启动 daemon 后 console/PTY 通道异常 → 容器 init 卡在 `n_tty_write`
+  （wchan=`wait_woken`，PTY master 无人读）。症状：app 面板终端连不上、
+  `podman run` 正常但 SSH 不通。恢复：删 disable → 重启。
+- **开机后 1 分钟内启动容器必失败**（系统服务未就绪 → init exit 1）；开机
+  6 分钟以上再启动稳定成功。
 
 ## 验证方法
 
@@ -88,6 +118,12 @@ podman unshare sh -c 'mkdir -p /tmp/fo && fuse-overlayfs -o lowerdir=/tmp/fo -o 
 
 # 4. 全链路（24298cf8c 后应 OK）
 podman run --rm --cgroups=disabled alpine echo hi
+
+# 5. rw sysfs 挂载（886338239 后应 EXIT=0；此前 EPERM）
+unshare -Urm sh -c 'mkdir -p /tmp/mnttest && mount -t sysfs sysfs /tmp/mnttest; echo EXIT=$?'
+
+# 6. 容器内挂载完整性（24298cf8c netns 绑定）
+podman run --rm --cgroups=disabled alpine ls /sys/class/net/   # 应显示 eth0（容器 veth）
 ```
 
 ## 红线（勿动）

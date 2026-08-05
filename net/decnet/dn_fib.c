@@ -133,7 +133,7 @@ static inline int dn_fib_nh_comp(const struct dn_fib_info *fi, const struct dn_f
 
 static inline struct dn_fib_info *dn_fib_find_info(const struct dn_fib_info *nfi)
 {
-	for_fib_info() {
+	for_fib_info(void) {
 		if (fi->fib_nhs != nfi->fib_nhs)
 			continue;
 		if (nfi->fib_protocol == fi->fib_protocol &&
@@ -702,7 +702,7 @@ static int dn_fib_sync_down(__le16 local, struct net_device *dev, int force)
 	if (force)
 		scope = -1;
 
-	for_fib_info() {
+	for_fib_info(void) {
 		/*
 		 * This makes no sense for DECnet.... we will almost
 		 * certainly have more than one local address the same
@@ -745,7 +745,7 @@ static int dn_fib_sync_up(struct net_device *dev)
 	if (!(dev->flags&IFF_UP))
 		return 0;
 
-	for_fib_info() {
+	for_fib_info(void) {
 		int alive = 0;
 
 		change_nexthops(fi) {

@@ -1999,7 +1999,7 @@ static struct i2c_driver pn544_driver = {
  * Returns          None
  *
  ******************************************************************************/
-static void check_hw_info() {
+static void check_hw_info(void) {
     char read_data[20];
     int ret, get_version_len = 8, retry_count = 0;
     static uint8_t cmd_reset_nci[] = {0x20, 0x00, 0x01, 0x00};

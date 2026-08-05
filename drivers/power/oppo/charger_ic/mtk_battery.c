@@ -6500,7 +6500,7 @@ static void meter_fg_30_set_battery_full(bool full)
 }
 #endif
 #ifdef VENDOR_EDIT
-static int  meter_fg_30_get_ic_device_type()
+static int  meter_fg_30_get_ic_device_type(void)
 {
     return 0;
 }

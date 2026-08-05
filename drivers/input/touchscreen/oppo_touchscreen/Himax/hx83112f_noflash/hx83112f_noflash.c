@@ -919,7 +919,7 @@ void himax_in_parse_assign_cmd(uint32_t addr, uint8_t *cmd, int len)
     }
 }
 
-int hx_dis_rload_0f()
+int hx_dis_rload_0f(void)
 {
     /* Diable Flash Reload */
     int retry = 10;
@@ -1554,7 +1554,7 @@ void himax_power_on_init(void)
     himax_sense_on(0x00);
 }
 
-int himax_check_remapping()
+int himax_check_remapping(void)
 {
     uint8_t cmd[4];
     uint8_t data[64];
@@ -1593,7 +1593,7 @@ int himax_check_remapping()
     return reload_status;
 }
 
-static void himax_read_FW_ver()
+static void himax_read_FW_ver(void)
 {
     uint8_t cmd[4];
     uint8_t data[64];

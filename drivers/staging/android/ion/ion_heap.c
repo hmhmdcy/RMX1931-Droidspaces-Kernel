@@ -194,14 +194,6 @@ static size_t _ion_heap_freelist_drain(struct ion_heap *heap, size_t size,
 	if (ion_heap_freelist_size(heap) == 0)
 		return 0;
 
-#if defined(OPLUS_FEATURE_MEMLEAK_DETECT) && defined(CONFIG_DUMP_TASKS_MEM)
-	/* Kui.Zhang@BSP.Kernel.MM, 2020-05-20 upate ions info of task. */
-	if (buffer->tsk) {
-		atomic64_sub(buffer->size, &buffer->tsk->ions);
-		put_task_struct(buffer->tsk);
-		buffer->tsk = NULL;
-	}
-#endif
 	spin_lock(&heap->free_lock);
 	if (size == 0)
 		size = heap->free_list_size;

@@ -23,6 +23,7 @@
 | `f3df8b7b6` | kernel/cgroup/cgroup.c | **[restrict]** | cgroup 挂载检查 `ns_capable(ns->user_ns)` → `capable()`（仅 init userns；userns 挂 cgroup 一律 EPERM → crun 官方 fallback bind 触发） |
 | `24298cf8c` | net/core/net-sysfs.c | **[relax]** | `net_current_may_mount` 放行挂载者当前 netns（sysfs 直挂） |
 | `886338239` | fs/namespace.c | **[relax]** | `mnt_already_visible` 删除 readonly 不匹配拒绝（Android 宿主 /sys 为 ro，userns 挂 rw sysfs 被误拒）；不传播 `MNT_LOCK_READONLY` |
+| `c4d6ef8` | fs/fuse/* | **[backport]** | 补齐 FUSE 的 `fc->user_ns` / `sb->s_user_ns` UID/GID 映射机制（upstream v4.18），彻底解决 rootless `fuse-overlayfs` 根目录变 nobody/EPERM 问题 |
 
 类型说明：
 - **[backport]**：主线早已修复的 bug 原样搬回，与 upstream 语义一致，无安全差异
@@ -69,11 +70,7 @@
   cgroup 配置限制），crun 管理 cgroup 时直接报
   `controller 'pids' is not available`。`--cgroups=disabled` 绕过（crun 官方
   fallback）。
-- **overlay 存储不可行（重要）**：本内核 FUSE 接口版本 **7.26**
-  （`include/uapi/linux/fuse.h`），fuse-overlayfs 1.13 需 **7.40** 的 owner 映射
-  特性。userns 内 fuse-overlayfs 挂载后 root 目录 owner 变 `nobody`（映射失败）→
-  chown/写入全部 `EPERM`（手动测试实证，非 podman 配置问题）。**存储保持 vfs**
-  （可用但慢）；要 overlay 需先 backport FUSE 7.28+（大工程，未做）。
+- **overlay 存储（fuse-overlayfs）已打通**：通过补齐内核 FUSE 模块中的 `fc->user_ns` UID/GID 转换机制（upstream 4.18），`fuse-overlayfs` 在 userns 下返回的 UID 0 可正确映射为容器 root 用户，根目录不再退化为 `nobody`，支持在 `~/.config/containers/storage.conf` 中开启 `driver = "overlay"`。
 - **镜像加速**：手机网络下 `registry-1.docker.io` DNS 被污染（解析到
   `100.49.158.130`，connection reset）。已配置 `~/.config/containers/registries.conf`
   镜像：`docker.m.daocloud.io`（HTTP/2 401 = 正常 registry 响应）。

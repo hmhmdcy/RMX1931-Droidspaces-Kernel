@@ -498,7 +498,7 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	if (!cc)
 		return -ENOMEM;
 
-	fuse_conn_init(&cc->fc);
+	fuse_conn_init(&cc->fc, &init_user_ns);
 
 	fud = fuse_dev_alloc(&cc->fc);
 	if (!fud) {

@@ -4957,13 +4957,13 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
 	cgroup_idr_replace(&root->cgroup_idr, cgrp, cgrp->id);
 
 	/*
-	 * On default hierarchy, auto-enable controllers for host-created cgroups
-	 * (init_cgroup_ns / init_user_ns) so container runtimes like DroidSpaces
-	 * automatically get full controller delegation without manual subtree_control writes.
-	 * Inside containers (non-init ns), let systemd configure its own .slice / .scope / .service hierarchy.
+	 * On default hierarchy, auto-enable subtree_control for top-level host cgroups
+	 * (e.g. /droidspaces and /droidspaces/debian container roots) so container engines
+	 * automatically receive full controller delegation without userspace hooks.
+	 * All cgroups deeper than container roots (created by systemd / crun) start with empty
+	 * subtree_control so leaf scopes (.scope / .service) never trigger -EUCLEAN.
 	 */
-	if (!cgroup_on_dfl(cgrp) ||
-	    (current->nsproxy->cgroup_ns == &init_cgroup_ns && current_user_ns() == &init_user_ns))
+	if (!cgroup_on_dfl(cgrp) || parent->level < 2)
 		cgrp->subtree_control = cgroup_control(cgrp);
 
 	if (cgroup_on_dfl(cgrp)) {

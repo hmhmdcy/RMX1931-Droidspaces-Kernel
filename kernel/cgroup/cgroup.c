@@ -4958,10 +4958,11 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
 
 	/*
 	 * On the default hierarchy, a child doesn't automatically inherit
-	 * subtree_control from the parent.  Each is configured manually.
+	 * subtree_control from the parent.  Each is configured manually by
+	 * systemd / container managers (which expect leaf scopes to be empty).
 	 */
-	/* Auto-inherit available controllers for seamless container delegation */
-	cgrp->subtree_control = cgroup_control(cgrp);
+	if (!cgroup_on_dfl(cgrp))
+		cgrp->subtree_control = cgroup_control(cgrp);
 
 	if (cgroup_on_dfl(cgrp)) {
 		ret = psi_cgroup_alloc(cgrp);

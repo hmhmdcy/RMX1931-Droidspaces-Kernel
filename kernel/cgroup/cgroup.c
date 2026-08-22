@@ -4957,11 +4957,13 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
 	cgroup_idr_replace(&root->cgroup_idr, cgrp, cgrp->id);
 
 	/*
-	 * On the default hierarchy, a child doesn't automatically inherit
-	 * subtree_control from the parent.  Each is configured manually by
-	 * systemd / container managers (which expect leaf scopes to be empty).
+	 * On default hierarchy, auto-enable controllers for host-created cgroups
+	 * (init_cgroup_ns / init_user_ns) so container runtimes like DroidSpaces
+	 * automatically get full controller delegation without manual subtree_control writes.
+	 * Inside containers (non-init ns), let systemd configure its own .slice / .scope / .service hierarchy.
 	 */
-	if (!cgroup_on_dfl(cgrp))
+	if (!cgroup_on_dfl(cgrp) ||
+	    (current->nsproxy->cgroup_ns == &init_cgroup_ns && current_user_ns() == &init_user_ns))
 		cgrp->subtree_control = cgroup_control(cgrp);
 
 	if (cgroup_on_dfl(cgrp)) {

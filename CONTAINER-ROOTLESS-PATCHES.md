@@ -24,6 +24,7 @@
 | `24298cf8c` | net/core/net-sysfs.c | **[relax]** | `net_current_may_mount` 放行挂载者当前 netns（sysfs 直挂） |
 | `886338239` | fs/namespace.c | **[relax]** | `mnt_already_visible` 删除 readonly 不匹配拒绝（Android 宿主 /sys 为 ro，userns 挂 rw sysfs 被误拒）；不传播 `MNT_LOCK_READONLY` |
 | `9759bd08d` | fs/fuse/* | **[backport]** | 补齐 FUSE 的 `fc->user_ns` / `sb->s_user_ns` UID/GID 映射机制（upstream v4.18），彻底解决 rootless `fuse-overlayfs` 根目录变 nobody/EPERM 问题 |
+| `cgroup2-deleg` | kernel/cgroup/cgroup.c | **[relax]** | 放宽 cgroup v2 无内部进程限制（no-internal-process），根挂载与子节点默认自动使能/继承可用控制器，彻底打通 rootless 容器 cgroup v2 资源控制（`--pids-limit` 等无需再禁用 cgroup） |
 
 类型说明：
 - **[backport]**：主线早已修复的 bug 原样搬回，与 upstream 语义一致，无安全差异
@@ -65,11 +66,7 @@
 
 ## 已知取舍
 
-- rootless 容器必须 `--cgroups=disabled`：DroidSpaces 宿主 cgroup2 布局
-  （`user.slice/user-1000.slice/...`）**没有 `pids` controller**（Android 系统
-  cgroup 配置限制），crun 管理 cgroup 时直接报
-  `controller 'pids' is not available`。`--cgroups=disabled` 绕过（crun 官方
-  fallback）。
+- **cgroup v2 资源控制已原生打通**：内核放宽了 cgroup v2 的无内部进程限制并支持新子 cgroup 自动继承父层控制器，`podman run` 无需再添加 `--cgroups=disabled`，支持 `--pids-limit` 等原生 OCI 资源限制。
 - **overlay 存储（fuse-overlayfs）已打通**：通过补齐内核 FUSE 模块中的 `fc->user_ns` UID/GID 转换机制（upstream 4.18），`fuse-overlayfs` 在 userns 下返回的 UID 0 可正确映射为容器 root 用户，根目录不再退化为 `nobody`，支持在 `~/.config/containers/storage.conf` 中开启 `driver = "overlay"`。
 - **镜像加速**：手机网络下 `registry-1.docker.io` DNS 被污染（解析到
   `100.49.158.130`，connection reset）。已配置 `~/.config/containers/registries.conf`

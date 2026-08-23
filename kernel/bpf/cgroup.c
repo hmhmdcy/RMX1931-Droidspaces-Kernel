@@ -385,6 +385,61 @@ cleanup:
 	return err;
 }
 
+int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
+		       union bpf_attr __user *uattr)
+{
+	enum bpf_attach_type type = attr->query.attach_type;
+	u32 __user *prog_ids = u64_to_user_ptr(attr->query.prog_ids);
+	u32 prog_cnt = attr->query.prog_cnt;
+	u32 total_cnt = 0;
+	u32 flags;
+	int ret = 0;
+
+	if (type >= MAX_BPF_ATTACH_TYPE)
+		return -EINVAL;
+
+	if (attr->query.query_flags & ~BPF_F_QUERY_EFFECTIVE)
+		return -EINVAL;
+
+	if (attr->query.query_flags & BPF_F_QUERY_EFFECTIVE) {
+		struct bpf_prog_array __rcu *effective;
+
+		effective = cgrp->bpf.effective[type];
+		total_cnt = bpf_prog_array_length(effective);
+		ret = bpf_prog_array_copy_info(effective, prog_ids,
+					       prog_cnt, &total_cnt);
+		flags = cgrp->bpf.flags[type];
+	} else {
+		struct bpf_prog_list *pl;
+		struct list_head *progs = &cgrp->bpf.progs[type];
+
+		flags = cgrp->bpf.flags[type];
+		list_for_each_entry(pl, progs, node) {
+			if (total_cnt < prog_cnt) {
+				u32 id = pl->prog->aux->id;
+
+				if (put_user(id, prog_ids + total_cnt)) {
+					ret = -EFAULT;
+					break;
+				}
+			}
+			total_cnt++;
+		}
+	}
+
+	if (ret)
+		return ret;
+
+	if (copy_to_user(&uattr->query.attach_flags, &flags, sizeof(flags)) ||
+	    copy_to_user(&uattr->query.prog_cnt, &total_cnt, sizeof(total_cnt)))
+		return -EFAULT;
+
+	if (prog_cnt < total_cnt)
+		return -ENOSPC;
+
+	return 0;
+}
+
 /**
  * __cgroup_bpf_run_filter_skb() - Run a program for packet filtering
  * @sk: The socket sending or receiving traffic

@@ -93,8 +93,8 @@ enum bpf_cmd {
 	BPF_PROG_GET_FD_BY_ID,
 	BPF_MAP_GET_FD_BY_ID,
 	BPF_OBJ_GET_INFO_BY_FD,
+	BPF_PROG_QUERY,
 };
-
 enum bpf_map_type {
 	BPF_MAP_TYPE_UNSPEC,
 	BPF_MAP_TYPE_HASH,
@@ -260,13 +260,22 @@ union bpf_attr {
 		__u32		bpf_fd;
 		__u32		file_flags;
 	};
-
+#define BPF_F_QUERY_EFFECTIVE	(1U << 0)
 	struct { /* anonymous struct used by BPF_PROG_ATTACH/DETACH commands */
 		__u32		target_fd;	/* container object to attach to */
 		__u32		attach_bpf_fd;	/* eBPF program to attach */
 		__u32		attach_type;
 		__u32		attach_flags;
 	};
+
+	struct { /* anonymous struct used by BPF_PROG_QUERY command */
+		__u32		target_fd;	/* container object to query */
+		__u32		attach_type;
+		__u32		query_flags;
+		__u32		attach_flags;
+		__aligned_u64	prog_ids;
+		__u32		prog_cnt;
+	} query;
 
 	struct { /* anonymous struct used by BPF_PROG_TEST_RUN command */
 		__u32		prog_fd;

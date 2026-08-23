@@ -1351,6 +1351,31 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 	cgroup_put(cgrp);
 	return ret;
 }
+#define BPF_PROG_QUERY_LAST_FIELD query.prog_cnt
+
+static int bpf_prog_query(const union bpf_attr *attr,
+			  union bpf_attr __user *uattr)
+{
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+	if (CHECK_ATTR(BPF_PROG_QUERY))
+		return -EINVAL;
+	if (attr->query.query_flags & ~BPF_F_QUERY_EFFECTIVE)
+		return -EINVAL;
+
+	switch (attr->query.attach_type) {
+	case BPF_CGROUP_INET_INGRESS:
+	case BPF_CGROUP_INET_EGRESS:
+	case BPF_CGROUP_INET_SOCK_CREATE:
+	case BPF_CGROUP_SOCK_OPS:
+	case BPF_CGROUP_DEVICE:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return cgroup_bpf_prog_query(attr, uattr);
+}
 
 #endif /* CONFIG_CGROUP_BPF */
 
@@ -1642,6 +1667,9 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 		break;
 	case BPF_PROG_DETACH:
 		err = bpf_prog_detach(&attr);
+		break;
+	case BPF_PROG_QUERY:
+		err = bpf_prog_query(&attr, uattr);
 		break;
 #endif
 	case BPF_PROG_TEST_RUN:

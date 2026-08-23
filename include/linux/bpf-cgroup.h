@@ -51,6 +51,10 @@ int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 		      enum bpf_attach_type type, u32 flags);
 int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 		      enum bpf_attach_type type, u32 flags);
+int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
+		       union bpf_attr __user *uattr);
+int cgroup_bpf_prog_query(const union bpf_attr *attr,
+			  union bpf_attr __user *uattr);
 
 int __cgroup_bpf_run_filter_skb(struct sock *sk,
 				struct sk_buff *skb,
@@ -124,6 +128,17 @@ int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
 #else
 
 struct cgroup_bpf {};
+static inline int __cgroup_bpf_query(struct cgroup *cgrp,
+				     const union bpf_attr *attr,
+				     union bpf_attr __user *uattr)
+{
+	return -EINVAL;
+}
+static inline int cgroup_bpf_prog_query(const union bpf_attr *attr,
+					union bpf_attr __user *uattr)
+{
+	return -EINVAL;
+}
 static inline void cgroup_bpf_put(struct cgroup *cgrp) {}
 static inline int cgroup_bpf_inherit(struct cgroup *cgrp) { return 0; }
 

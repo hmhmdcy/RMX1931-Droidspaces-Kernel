@@ -1592,6 +1592,53 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 	*new_array = array;
 	return 0;
 }
+int bpf_prog_array_length(struct bpf_prog_array __rcu *progs)
+{
+	struct bpf_prog_array *array;
+	struct bpf_prog **prog;
+	u32 cnt = 0;
+
+	rcu_read_lock();
+	array = rcu_dereference(progs);
+	if (!array)
+		goto out;
+
+	for (prog = array->progs; *prog; prog++)
+		if (*prog != &dummy_bpf_prog.prog)
+			cnt++;
+out:
+	rcu_read_unlock();
+	return cnt;
+}
+
+int bpf_prog_array_copy_info(struct bpf_prog_array __rcu *progs,
+			     u32 *prog_ids, u32 request_cnt,
+			     u32 *prog_cnt)
+{
+	struct bpf_prog_array *array;
+	struct bpf_prog **prog;
+	u32 cnt = 0;
+
+	if (request_cnt && !prog_ids)
+		return -EINVAL;
+
+	rcu_read_lock();
+	array = rcu_dereference(progs);
+	if (!array)
+		goto out;
+
+	for (prog = array->progs; *prog; prog++) {
+		if (*prog == &dummy_bpf_prog.prog)
+			continue;
+		if (cnt < request_cnt)
+			prog_ids[cnt] = (*prog)->aux->id;
+		cnt++;
+	}
+out:
+	rcu_read_unlock();
+	*prog_cnt = cnt;
+	return 0;
+}
 
 static void bpf_prog_free_deferred(struct work_struct *work)
 {

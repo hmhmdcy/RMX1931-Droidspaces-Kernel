@@ -281,6 +281,10 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 			struct bpf_prog *exclude_prog,
 			struct bpf_prog *include_prog,
 			struct bpf_prog_array **new_array);
+int bpf_prog_array_length(struct bpf_prog_array __rcu *progs);
+int bpf_prog_array_copy_info(struct bpf_prog_array __rcu *array,
+			     u32 *prog_ids, u32 request_cnt,
+			     u32 *prog_cnt);
 
 #define __BPF_PROG_RUN_ARRAY(array, ctx, func, check_non_null)	\
 	({						\

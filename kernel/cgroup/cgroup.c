@@ -6002,4 +6002,21 @@ int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 	mutex_unlock(&cgroup_mutex);
 	return ret;
 }
+int cgroup_bpf_prog_query(const union bpf_attr *attr,
+			  union bpf_attr __user *uattr)
+{
+	struct cgroup *cgrp;
+	int ret;
+
+	cgrp = cgroup_get_from_fd(attr->query.target_fd);
+	if (IS_ERR(cgrp))
+		return PTR_ERR(cgrp);
+
+	mutex_lock(&cgroup_mutex);
+	ret = __cgroup_bpf_query(cgrp, attr, uattr);
+	mutex_unlock(&cgroup_mutex);
+
+	cgroup_put(cgrp);
+	return ret;
+}
 #endif /* CONFIG_CGROUP_BPF */

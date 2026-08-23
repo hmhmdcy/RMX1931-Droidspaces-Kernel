@@ -138,6 +138,7 @@ obj-$(CONFIG_F2FS_FS)		+= of2fs/
 else
 obj-$(CONFIG_F2FS_FS)		+= f2fs/
 endif
+obj-$(CONFIG_EROFS_FS)		+= erofs/
 obj-y				+= exofs/ # Multiple modules
 obj-$(CONFIG_CEPH_FS)		+= ceph/
 obj-$(CONFIG_PSTORE)		+= pstore/

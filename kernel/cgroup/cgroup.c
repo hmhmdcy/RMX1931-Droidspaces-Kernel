@@ -205,6 +205,7 @@ static struct cftype cgroup_base_files[];
 
 static int cgroup_apply_control(struct cgroup *cgrp);
 static void cgroup_finalize_control(struct cgroup *cgrp, int ret);
+static void cgroup_propagate_control(struct cgroup *cgrp);
 static void css_task_iter_skip(struct css_task_iter *it,
 			       struct task_struct *task);
 static int cgroup_destroy_locked(struct cgroup *cgrp);

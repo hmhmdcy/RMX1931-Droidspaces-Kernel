@@ -205,7 +205,6 @@ static struct cftype cgroup_base_files[];
 
 static int cgroup_apply_control(struct cgroup *cgrp);
 static void cgroup_finalize_control(struct cgroup *cgrp, int ret);
-static void cgroup_propagate_control(struct cgroup *cgrp);
 static void css_task_iter_skip(struct css_task_iter *it,
 			       struct task_struct *task);
 static int cgroup_destroy_locked(struct cgroup *cgrp);
@@ -2029,9 +2028,17 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 
 		cgrp_dfl_visible = true;
 		cgroup_get_live(&cgrp_dfl_root.cgrp);
-		cgrp_dfl_root.cgrp.subtree_control = cgroup_control(&cgrp_dfl_root.cgrp);
-		cgroup_propagate_control(&cgrp_dfl_root.cgrp);
-
+		/*
+		 * Seed controller delegation only for host-side mounts (init ns).
+		 * Mounts issued inside containers must not perturb the cgroup
+		 * hierarchy that systemd maintains there (no-internal-process
+		 * semantics are standard everywhere else).
+		 */
+		if (current->nsproxy->cgroup_ns == &init_cgroup_ns &&
+		    current_user_ns() == &init_user_ns) {
+			cgrp_dfl_root.cgrp.subtree_control = cgroup_control(&cgrp_dfl_root.cgrp);
+			cgroup_propagate_control(&cgrp_dfl_root.cgrp);
+		}
 
 		dentry = cgroup_do_mount(&cgroup2_fs_type, flags, &cgrp_dfl_root,
 					 CGROUP2_SUPER_MAGIC, ns);
@@ -2377,7 +2384,10 @@ int cgroup_migrate_vet_dst(struct cgroup *dst_cgrp)
 	if (cgroup_can_be_thread_root(dst_cgrp) || cgroup_is_threaded(dst_cgrp))
 		return 0;
 
-	/* Relax no-internal-process constraint for Android container compatibility */
+	/* apply no-internal-process constraint */
+	if (dst_cgrp->subtree_control)
+		return -EBUSY;
+
 	return 0;
 }
 
@@ -3047,7 +3057,13 @@ static int cgroup_vet_subtree_control_enable(struct cgroup *cgrp, u16 enable)
 			return 0;
 	}
 
-	/* Relax: allow enabling controllers even if cgroup has tasks (Android container compatibility) */
+	/*
+	 * Controllers can't be enabled for a cgroup with tasks to avoid
+	 * child cgroups competing against tasks.
+	 */
+	if (cgroup_has_tasks(cgrp))
+		return -EBUSY;
+
 	return 0;
 }
 
@@ -4958,8 +4974,7 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
 
 	/*
 	 * On the default hierarchy, a child doesn't automatically inherit
-	 * subtree_control from the parent. Each is configured manually by
-	 * systemd / container managers (which expect leaf scopes to be empty).
+	 * subtree_control from the parent.  Each is configured manually.
 	 */
 	if (!cgroup_on_dfl(cgrp))
 		cgrp->subtree_control = cgroup_control(cgrp);

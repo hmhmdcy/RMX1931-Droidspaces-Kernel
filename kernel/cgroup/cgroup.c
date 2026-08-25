@@ -5380,6 +5380,8 @@ static u16 cgroup_disable_mask __initdata;
  */
 int __init cgroup_init(void)
 {
+	/* plan-b fingerprint: proves binary built from fixed sources */
+	pr_info("cgroup: planb-stock-semantics build marker reached\n");
 	struct cgroup_subsys *ss;
 	int ssid;
 
